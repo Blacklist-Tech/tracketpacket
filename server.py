@@ -8,15 +8,23 @@ Usage:
     python3 server.py --port 3000  # Custom port
 """
 
-import json, os, re, subprocess, sys, socket, time, threading, csv, io
+import json, os, re, subprocess, sys, socket, time, threading, csv, io, signal
 from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-PORT = 8080
-DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "devices.json")
-HTML_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+PORT = 9001
+
+def get_res(filename):
+    """Find resource file, supporting PyInstaller's _MEIPASS."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
+HTML_FILE = get_res("index.html")
+OUI_FILE = get_res("oui.tsv")
+DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "devices.json") # Default
 ALLOWED_INTERVALS = [5, 10, 30, 60, 300]
 
 _config = {"scan_interval": 60}
@@ -26,6 +34,17 @@ _scan_timestamp = None
 _lock = threading.Lock()           # protects devices.json reads/writes
 _scanning = threading.Lock()       # prevents overlapping scan cycles
 _was_online = {}                   # {mac: bool} snapshot from previous scan
+_shutdown = False                  # signal for threads to stop
+
+def handle_shutdown(signum, frame):
+    global _shutdown
+    print(f"\n[TP] Signal {signum} received. Saving and exiting...")
+    _shutdown = True
+    # Final data save is handled by the last thread context or on main exit
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, handle_shutdown)
+signal.signal(signal.SIGTERM, handle_shutdown)
 
 # ─── Persistent Storage ─────────────────────────────────────────────────────
 def load_data():
@@ -148,7 +167,6 @@ _OUI = {
 }
 
 # Load full OUI database from file (39K+ entries), fall back to embedded
-OUI_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "oui.tsv")
 def _load_oui():
     db = dict(_OUI)  # start with embedded as base
     if os.path.exists(OUI_FILE):
@@ -645,7 +663,7 @@ def process_scan(raw_devices):
 def background_scanner():
     # Small initial delay so the server can start before first scan
     time.sleep(2)
-    while True:
+    while not _shutdown:
         if _scanning.acquire(blocking=False):
             try:
                 raw = discover_devices()
@@ -654,7 +672,11 @@ def background_scanner():
                 print(f"[TP] Scan error: {e}", file=sys.stderr)
             finally:
                 _scanning.release()
-        time.sleep(_config["scan_interval"])
+        
+        # Check shutdown more frequently during sleep
+        for _ in range(int(_config["scan_interval"])):
+            if _shutdown: break
+            time.sleep(1)
 
 # ─── HTTP Handler ────────────────────────────────────────────────────────────
 class Handler(SimpleHTTPRequestHandler):
@@ -868,10 +890,13 @@ class Handler(SimpleHTTPRequestHandler):
             def _speed():
                 try:
                     import urllib.request
+                    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                    
                     # 1. Download Test (10MB)
                     d_url = "https://speed.cloudflare.com/__down?bytes=10000000"
                     t0 = time.time()
-                    with urllib.request.urlopen(d_url, timeout=30) as r:
+                    req_d = urllib.request.Request(d_url, headers=headers)
+                    with urllib.request.urlopen(req_d, timeout=30) as r:
                         _ = r.read()
                     d_mbps = (80 / (time.time() - t0))
                     
@@ -879,8 +904,8 @@ class Handler(SimpleHTTPRequestHandler):
                     u_url = "https://speed.cloudflare.com/__up"
                     payload = b'0' * 5000000
                     t1 = time.time()
-                    req = urllib.request.Request(u_url, data=payload, method='POST')
-                    with urllib.request.urlopen(req, timeout=30) as r:
+                    req_u = urllib.request.Request(u_url, data=payload, headers=headers, method='POST')
+                    with urllib.request.urlopen(req_u, timeout=30) as r:
                         _ = r.read()
                     u_mbps = (40 / (time.time() - t1))
 
@@ -978,12 +1003,49 @@ def _first_run_check():
     else:
         print("  Skipped — TracketPacket will run with reduced accuracy.\n")
 
+def print_systemd_service(port):
+    user = os.getlogin() if hasattr(os, "getlogin") else "pi"
+    script_path = os.path.abspath(__file__)
+    working_dir = os.path.dirname(script_path)
+    
+    service = f"""[Unit]
+Description=TracketPacket Network Intelligence
+After=network.target
+
+[Service]
+ExecStart={sys.executable} {script_path} --port {port}
+WorkingDirectory={working_dir}
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User={user}
+
+[Install]
+WantedBy=multi-user.target
+"""
+    print("\n  --- SYSTEMD SERVICE FILE ---")
+    print("  Save this to /etc/systemd/system/tracketpacket.service\n")
+    print(service)
+    print("  Then run:")
+    print("  sudo systemctl daemon-reload")
+    print("  sudo systemctl enable tracketpacket")
+    print("  sudo systemctl start tracketpacket\n")
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 def main():
+    global DATA_FILE
     port = PORT
     if "--port" in sys.argv:
         try: port = int(sys.argv[sys.argv.index("--port")+1])
         except (IndexError, ValueError): pass
+
+    if "--data" in sys.argv:
+        try: DATA_FILE = sys.argv[sys.argv.index("--data")+1]
+        except IndexError: pass
+
+    if "--systemd" in sys.argv:
+        print_systemd_service(port)
+        return
 
     ip = local_ip()
     print(f"\n  TracketPacket v4")
