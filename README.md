@@ -1,101 +1,63 @@
-# 📡 TracketPacket
-**The Ultra-Lightweight, Private Network Intelligence Suite for Raspberry Pi.**
+# TracketPacket
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![Python: 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
-[![Hardware: Raspberry Pi](https://img.shields.io/badge/Hardware-Raspberry%20Pi-red.svg)](https://www.raspberrypi.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
 
-TracketPacket is a "Zero-Dependency" network monitoring tool designed to give you **Fing-level intelligence** without the cloud, without the subscriptions, and without the bloat. It's built specifically for the Raspberry Pi but runs on any Linux or Windows machine.
+A lightweight, privacy-first network intelligence tool for monitoring devices on your local network. Runs on a Raspberry Pi with zero cloud dependencies.
 
----
+## Features
 
-## ✨ Why TracketPacket?
+- **Device Discovery** — Scans your LAN and identifies every connected device with manufacturer lookup via OUI database
+- **Security Audit** — Checks common ports (SSH, Telnet, FTP, SMB) and assigns a security score with actionable hardening advice
+- **Change Detection** — Tracks first-seen and last-seen timestamps. Know when new devices join your network
+- **Wake-on-LAN** — Wake sleeping machines directly from the web dashboard
+- **Persistent Notes** — Assign nicknames and notes to devices, persisted across reboots
+- **ISP Intelligence** — Displays your public IP and ISP information
+- **Zero Cloud** — All data stays on your device. No accounts, no telemetry, no external services
 
-Most network scanners are either too simple (missing history) or too complex (requiring Docker, DBs, and heavy agents). **TracketPacket** hits the sweet spot:
+## Quick Start
 
-*   **🔒 100% Private**: Your network data never leaves your LAN. No accounts, no cloud, no "telemetry."
-*   **🚀 Zero-Dependency**: Runs on a standard Python 3 install. No heavy database engines needed—it uses a high-performance JSON persistence layer.
-*   **🛠️ Standalone Binary**: Includes an installer that compiles the app into a single executable for the Raspberry Pi.
-*   **⚡ Pro Features**: Integrated Port Scanning, Security Auditing, ISP Intelligence, and Device History.
+### Prerequisites
+- Python 3.8 or later
+- `nmap` (optional, for enhanced port scanning)
 
----
-
-## 📸 Dashboard Preview
-
-> [!TIP]
-> The dashboard is a modern, responsive single-page application that feels like a premium desktop app.
-
-*Imagine a screenshot here showing the sleek Blacklist-styled dark mode dashboard.*
-
----
-
-## 🛠️ Key Features
-
-### 🛡️ Security Audit
-Automatically scans common ports (`SSH`, `Telnet`, `FTP`, `SMB`) and assigns a **Security Score** to every device. It provides actionable advice to harden your network.
-
-### 📝 Digital Fence & History
-Know exactly when a new device joins your network for the first time. Track "Last Seen" timestamps and keep persistent **Nicknames** and **Notes** for every machine, phone, and IoT lightbulb.
-
-### 🔌 Wake-on-LAN (WOL)
-Directly wake up your sleeping PCs or servers from the web interface.
-
-### 📊 Intelligence Engine
-*   **OUI Lookup**: Accurate manufacturer detection from a 40k+ entry database.
-*   **Categorization**: Smart logic to distinguish between Routers, TVs, Servers, and Phones.
-*   **ISP Context**: Real-time public IP and ISP intelligence.
-
----
-
-## 🚀 One-Step Installation (Raspberry Pi)
-
-We've provided a professional-grade installer that handles everything from system dependencies to `systemd` service configuration.
+### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/YourUsername/tracketpacket.git
+git clone https://github.com/Blacklist-Tech/tracketpacket.git
 cd tracketpacket
-
-# Run the Pi Installer
-sudo bash scripts/install/install_pi.sh
-```
-
-**After installation, access your dashboard at:**
-`http://<your-pi-ip>:9001`
-
----
-
-## 💻 Manual Setup (Linux/Windows)
-
-If you just want to run it without the service:
-
-```bash
-# Install system-level dependencies (optional but recommended)
-# Ubuntu/Debian: sudo apt install nmap avahi-utils
-
 python server.py
 ```
 
----
+Open `http://localhost:9001` in your browser.
 
-## 📂 Project Structure
+### Raspberry Pi Deployment
 
-```text
-tracketpacket/
-├── server.py           # Core Intelligence Engine & HTTP Server
-├── index.html          # Professional Single-Page UI
-├── oui.tsv             # Manufacturer Database (40k+ entries)
-├── devices.json        # Persistent Storage (Generated)
-└── scripts/
-    └── install/
-        └── install_pi.sh  # Automated Pi Installer
+```bash
+git clone https://github.com/Blacklist-Tech/tracketpacket.git
+cd tracketpacket
+sudo bash scripts/install/install_pi.sh
 ```
 
----
+The installer configures a `systemd` service so TracketPacket starts on boot and runs on port 9001.
 
-## 📜 License
-Distributed under the **MIT License**. Built with ☕ and curiosity by **Blacklist Tech**.
+## Project Structure
 
----
+```
+tracketpacket/
+├── server.py              # HTTP server and scan engine
+├── index.html             # Web dashboard
+├── oui.tsv                # IEEE OUI manufacturer database
+└── scripts/
+    └── install/
+        └── install_pi.sh  # Raspberry Pi installer
+```
 
-> "Privacy isn't an option; it's a default." 📡
+## Contributing
+
+Contributions, issues, and feature requests are welcome. Feel free to open an issue or submit a pull request.
+
+## License
+
+MIT © [Blacklist Tech](https://github.com/Blacklist-Tech)
