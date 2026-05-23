@@ -1,0 +1,14 @@
+# Sensitive / local data
+tp_token.txt
+devices.json
+devices.json.bak_*
+nmap_debug.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
